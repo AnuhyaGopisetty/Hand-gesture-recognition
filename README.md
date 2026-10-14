@@ -17,11 +17,11 @@ The application provides a simple, interactive interface for detecting and displ
 💻 Simple and responsive user interface
 
 🛠️ **Technologies Used**
-HTML5 \n
-CSS3 /n
-JavaScript (ES Modules) /n
-Google MediaPipe Tasks Vision /n
-WebRTC Camera API /n
+HTML5  
+CSS3   
+JavaScript (ES Modules)   
+Google MediaPipe Tasks Vision  
+WebRTC Camera API   
 
 ⚙️ **How It Works**
 The application accesses the webcam with the user's permission.
