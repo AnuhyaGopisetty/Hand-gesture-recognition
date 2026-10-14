@@ -1,0 +1,286 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Recognition</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #101827;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            color: #38bdf8;
+            margin-top: 30px;
+        }
+
+        p {
+            color: #cbd5e1;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 650px;
+            margin: 25px auto;
+            padding: 20px;
+            background: #1e293b;
+            border-radius: 12px;
+        }
+
+        .camera {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+            background: black;
+            border-radius: 10px;
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+        }
+
+        button {
+            padding: 12px 22px;
+            margin: 15px 5px;
+            border: none;
+            border-radius: 6px;
+            background: #0284c7;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0369a1;
+        }
+
+        #gesture {
+            margin-top: 20px;
+            font-size: 26px;
+            color: #4ade80;
+        }
+
+        #status {
+            color: #facc15;
+        }
+
+        .info {
+            margin-top: 25px;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Hand Gesture Recognition</h1>
+    <p>AI-based hand detection using JavaScript</p>
+
+    <div class="container">
+
+        <div class="camera">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <p id="status">Click Start Camera to begin</p>
+
+        <button id="start">Start Camera</button>
+        <button id="stop">Stop Camera</button>
+
+        <div id="gesture">Waiting for hand...</div>
+
+        <div class="info">
+            <p>✋ Open Palm</p>
+            <p>✊ Fist</p>
+            <p>👍 Thumbs Up</p>
+            <p>✌️ Peace Sign</p>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import {
+            FilesetResolver,
+            HandLandmarker,
+            DrawingUtils
+        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const status = document.getElementById("status");
+        const gesture = document.getElementById("gesture");
+
+        let handModel;
+        let camera;
+        let running = false;
+        let animation;
+
+        async function setupAI() {
+            status.textContent = "Loading hand detection model...";
+
+            const vision = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+            );
+
+            handModel = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath:
+                        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                    delegate: "GPU"
+                },
+                runningMode: "VIDEO",
+                numHands: 2
+            });
+        }
+
+        function fingerUp(points, tip, joint) {
+            return points[tip].y < points[joint].y;
+        }
+
+        function recognizeHand(points) {
+            const index = fingerUp(points, 8, 6);
+            const middle = fingerUp(points, 12, 10);
+            const ring = fingerUp(points, 16, 14);
+            const little = fingerUp(points, 20, 18);
+
+            const fingersClosed = !index && !middle && !ring && !little;
+
+            const thumb = points[4].y < points[3].y &&
+                          points[3].y < points[2].y &&
+                          points[4].y < points[0].y;
+
+            if (fingersClosed && thumb) {
+                return "👍 Thumbs Up";
+            }
+
+            if (index && middle && !ring && !little) {
+                return "✌️ Peace Sign";
+            }
+
+            if (index && middle && ring && little) {
+                return "✋ Open Palm";
+            }
+
+            if (fingersClosed) {
+                return "✊ Fist";
+            }
+
+            return "Hand Detected";
+        }
+
+        async function startCamera() {
+            document.getElementById("start").disabled = true;
+
+            try {
+                if (!handModel) {
+                    await setupAI();
+                }
+
+                camera = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+
+                video.srcObject = camera;
+                await video.play();
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                running = true;
+                status.textContent = "Camera is running";
+                detectHands();
+
+            } catch (error) {
+                console.error(error);
+                status.textContent =
+                    "Camera failed. Allow permission and check your internet.";
+                stopCamera();
+            }
+        }
+
+        const drawer = new DrawingUtils(ctx);
+
+        function detectHands() {
+            if (!running) return;
+
+            if (video.readyState >= 2) {
+                const result = handModel.detectForVideo(
+                    video,
+                    performance.now()
+                );
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (result.landmarks.length > 0) {
+                    result.landmarks.forEach(points => {
+                        drawer.drawConnectors(
+                            points,
+                            HandLandmarker.HAND_CONNECTIONS,
+                            { color: "#38bdf8", lineWidth: 3 }
+                        );
+
+                        drawer.drawLandmarks(
+                            points,
+                            { color: "#f472b6", lineWidth: 2 }
+                        );
+                    });
+
+                    gesture.textContent =
+                        recognizeHand(result.landmarks[0]);
+
+                    status.textContent =
+                        result.landmarks.length + " hand(s) detected";
+                } else {
+                    gesture.textContent = "No hand detected";
+                    status.textContent = "Show your hand to the camera";
+                }
+            }
+
+            animation = requestAnimationFrame(detectHands);
+        }
+
+        function stopCamera() {
+            running = false;
+            cancelAnimationFrame(animation);
+
+            if (camera) {
+                camera.getTracks().forEach(track => track.stop());
+                camera = null;
+            }
+
+            video.srcObject = null;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            gesture.textContent = "Waiting for hand...";
+            status.textContent = "Camera stopped";
+
+            document.getElementById("start").disabled = false;
+        }
+
+        document.getElementById("start").addEventListener(
+            "click", startCamera
+        );
+
+        document.getElementById("stop").addEventListener(
+            "click", stopCamera
+        );
+    </script>
+
+</body>
+</html>
