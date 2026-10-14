@@ -28,7 +28,7 @@ The application accesses the webcam with the user's permission.
 MediaPipe detects the hand and identifies 21 hand landmarks.  
 JavaScript analyzes landmark positions to classify gestures.  
 The detected hand landmarks are drawn on the video feed. 
-The recognized gesture is displayed on the screen. 
+The recognized gesture is displayed on the screen.   
 🚀 **How to Run**  
 Clone or download this repository. 
 Open the project folder in Visual Studio Code. 
