@@ -17,7 +17,7 @@ The application provides a simple, interactive interface for detecting and displ
 💻 Simple and responsive user interface
 
 🛠️ **Technologies Used**
-HTML5 /n
+HTML5 \n
 CSS3 /n
 JavaScript (ES Modules) /n
 Google MediaPipe Tasks Vision /n
